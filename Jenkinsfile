@@ -19,8 +19,8 @@ pipeline {
         )
         string(
             name: 'DEPLOY_PATH',
-            defaultValue: '/var/www/html/h5-coverage-demo',
-            description: '部署路径（Nginx模式）'
+            defaultValue: '${WORKSPACE}/deploy',
+            description: '部署路径（Nginx模式）- 默认部署到workspace/deploy目录'
         )
         string(
             name: 'COVERAGE_SERVER_PORT',
@@ -261,15 +261,21 @@ pipeline {
                             echo "部署模式: Nginx"
                             echo "部署路径: ${DEPLOY_PATH}"
                             
-                            # 创建部署目录
-                            sudo mkdir -p ${DEPLOY_PATH}
+                            # 创建部署目录（不使用sudo）
+                            mkdir -p ${DEPLOY_PATH} || {
+                                echo "⚠ 无法创建目录 ${DEPLOY_PATH}"
+                                echo "请确保Jenkins用户有权限访问该路径，或手动创建目录并授权"
+                                exit 1
+                            }
                             
                             # 复制文件
-                            sudo cp -r dist/* ${DEPLOY_PATH}/
+                            cp -r dist/* ${DEPLOY_PATH}/ || {
+                                echo "⚠ 文件复制失败"
+                                exit 1
+                            }
                             
-                            # 设置权限
-                            sudo chown -R www-data:www-data ${DEPLOY_PATH} || sudo chown -R nginx:nginx ${DEPLOY_PATH} || true
-                            sudo chmod -R 755 ${DEPLOY_PATH}
+                            # 设置权限（尽力而为，不强制要求）
+                            chmod -R 755 ${DEPLOY_PATH} 2>/dev/null || echo "⚠ 权限设置失败（可能需要手动调整）"
                             
                             echo "✓ 部署完成"
                             echo "访问地址: http://your-server-ip/h5-coverage-demo"
@@ -309,8 +315,8 @@ pipeline {
                         
                         # 复制覆盖率服务器脚本到部署目录
                         if [ "$DEPLOY_TARGET" = "nginx" ]; then
-                            sudo cp coverage-server.js ${DEPLOY_PATH}/ || true
-                            echo "✓ 覆盖率服务器脚本已复制到部署目录"
+                            cp coverage-server.js ${DEPLOY_PATH}/ 2>/dev/null || echo "⚠ 覆盖率服务器脚本复制失败"
+                            echo "✓ 覆盖率服务器脚本已复制到部署目录（如果成功）"
                         fi
                         
                         # 注意：实际启动服务器需要在部署后手动执行或使用systemd服务
