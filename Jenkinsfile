@@ -1,10 +1,10 @@
 pipeline {
     agent any
     
-    tools {
-        // 如果使用NodeJS Plugin，取消注释下面这行并配置正确的名称
-        // nodejs 'NodeJS'
-    }
+    // 如果需要使用Jenkins的NodeJS插件，取消注释下面的tools块并配置正确的名称
+    // tools {
+    //     nodejs 'NodeJS'
+    // }
     
     parameters {
         choice(
@@ -276,7 +276,8 @@ pipeline {
             echo '=========================================='
         }
         always {
-            // 清理工作空间（可选）
+            echo '构建流程完成'
+            // 清理工作空间（可选，取消注释以启用）
             // cleanWs()
         }
     }
