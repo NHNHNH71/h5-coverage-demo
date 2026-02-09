@@ -25,8 +25,8 @@ pipeline {
                 echo '检查覆盖率数据...'
                 echo '=========================================='
                 script {
-                    sh '''
-                        cd ${WORKSPACE_PATH}
+                    sh """
+                        cd ${params.WORKSPACE_PATH}
                         
                         if [ ! -f ".nyc_output/coverage.json" ]; then
                             echo "❌ 覆盖率数据文件不存在"
@@ -41,7 +41,7 @@ pipeline {
                         echo ""
                         echo "覆盖率数据统计:"
                         cat .nyc_output/coverage.json | grep -o '"path"' | wc -l | xargs echo "  文件数:"
-                    '''
+                    """
                 }
             }
         }
@@ -52,10 +52,10 @@ pipeline {
                 echo '生成覆盖率报告...'
                 echo '=========================================='
                 script {
-                    sh '''
-                        cd ${WORKSPACE_PATH}
+                    sh """
+                        cd ${params.WORKSPACE_PATH}
                         
-                        export PATH="$HOME/.jenkins_nodejs/bin:${PATH}"
+                        export PATH="\$HOME/.jenkins_nodejs/bin:\${PATH}"
                         
                         # 生成 HTML 报告
                         npm run coverage:report
@@ -63,7 +63,7 @@ pipeline {
                         echo ""
                         echo "✓ 覆盖率报告已生成"
                         ls -lah coverage/
-                    '''
+                    """
                 }
             }
         }
