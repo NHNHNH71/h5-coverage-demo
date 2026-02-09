@@ -35,6 +35,8 @@ pipeline {
         DEPLOY_PATH = "${params.DEPLOY_PATH ?: '/var/www/html/h5-coverage-demo'}"
         COVERAGE_SERVER_PORT = "${params.COVERAGE_SERVER_PORT ?: '8081'}"
         NODE_VERSION = '18'
+        // 确保 Node.js 路径在所有阶段可用
+        PATH = "${env.PATH}:${env.HOME}/.jenkins_nodejs/bin"
     }
     
     stages {
@@ -47,6 +49,91 @@ pipeline {
             }
         }
         
+        stage('Setup Node.js') {
+            steps {
+                echo '=========================================='
+                echo '正在设置 Node.js 环境...'
+                echo '=========================================='
+                script {
+                    sh '''
+                        # 检查 Node.js 是否已安装
+                        if command -v node >/dev/null 2>&1; then
+                            echo "✓ Node.js 已安装: $(node --version)"
+                            echo "✓ NPM 版本: $(npm --version)"
+                        else
+                            echo "Node.js 未安装，开始安装..."
+                            
+                            # 方法1: 尝试使用 nvm (如果已安装)
+                            if [ -s "$HOME/.nvm/nvm.sh" ]; then
+                                echo "使用 nvm 安装 Node.js ${NODE_VERSION}..."
+                                export NVM_DIR="$HOME/.nvm"
+                                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                                nvm install ${NODE_VERSION}
+                                nvm use ${NODE_VERSION}
+                            # 方法2: 直接下载 Node.js 二进制文件
+                            elif [ ! -d "$HOME/.jenkins_nodejs" ]; then
+                                echo "下载并安装 Node.js ${NODE_VERSION}..."
+                                NODE_DISTRO="linux-x64"
+                                # 使用 Node.js ${NODE_VERSION} LTS 版本
+                                NODE_VERSION_FULL="v${NODE_VERSION}.20.0"
+                                NODE_URL="https://nodejs.org/dist/${NODE_VERSION_FULL}/node-${NODE_VERSION_FULL}-${NODE_DISTRO}.tar.xz"
+                                
+                                echo "下载 Node.js ${NODE_VERSION_FULL}..."
+                                mkdir -p $HOME/.jenkins_nodejs
+                                cd $HOME/.jenkins_nodejs
+                                
+                                # 下载 Node.js
+                                if command -v wget >/dev/null 2>&1; then
+                                    wget -q $NODE_URL -O node.tar.xz
+                                elif command -v curl >/dev/null 2>&1; then
+                                    curl -sL $NODE_URL -o node.tar.xz
+                                else
+                                    echo "错误: 未找到 wget 或 curl，无法下载 Node.js"
+                                    exit 1
+                                fi
+                                
+                                if [ ! -f node.tar.xz ] || [ ! -s node.tar.xz ]; then
+                                    echo "下载失败，尝试使用 NodeSource 安装脚本..."
+                                    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - || {
+                                        echo "✗ Node.js 安装失败，请手动安装 Node.js ${NODE_VERSION}"
+                                        exit 1
+                                    }
+                                    # 如果使用 apt 安装，Node.js 已经在 PATH 中
+                                else
+                                    # 解压
+                                    tar -xf node.tar.xz
+                                    NODE_DIR=$(ls -d node-* 2>/dev/null | head -1)
+                                    if [ -n "$NODE_DIR" ]; then
+                                        mv ${NODE_DIR}/* .
+                                        rm -rf ${NODE_DIR} node.tar.xz
+                                        # 添加到 PATH
+                                        export PATH="$HOME/.jenkins_nodejs/bin:$PATH"
+                                        echo 'export PATH="$HOME/.jenkins_nodejs/bin:$PATH"' >> ~/.bashrc
+                                        echo "✓ Node.js 安装完成"
+                                    else
+                                        echo "✗ 解压失败"
+                                        exit 1
+                                    fi
+                                fi
+                            else
+                                echo "使用已缓存的 Node.js..."
+                                export PATH="$HOME/.jenkins_nodejs/bin:$PATH"
+                            fi
+                            
+                            # 验证安装
+                            if command -v node >/dev/null 2>&1; then
+                                echo "✓ Node.js 安装成功: $(node --version)"
+                                echo "✓ NPM 版本: $(npm --version)"
+                            else
+                                echo "✗ Node.js 安装失败"
+                                exit 1
+                            fi
+                        fi
+                    '''
+                }
+            }
+        }
+        
         stage('Install Dependencies') {
             steps {
                 echo '=========================================='
@@ -55,8 +142,17 @@ pipeline {
                 script {
                     dir('h5-coverage-demo') {
                         sh '''
-                            echo "Node版本: $(node --version || echo '未安装')"
-                            echo "NPM版本: $(npm --version || echo '未安装')"
+                            # 确保 Node.js 在 PATH 中
+                            export PATH="$HOME/.jenkins_nodejs/bin:${PATH}"
+                            
+                            echo "Node版本: $(node --version 2>&1 || echo '未找到')"
+                            echo "NPM版本: $(npm --version 2>&1 || echo '未找到')"
+                            
+                            if ! command -v node >/dev/null 2>&1; then
+                                echo "错误: Node.js 未找到，请检查 Setup Node.js 阶段"
+                                exit 1
+                            fi
+                            
                             npm install --legacy-peer-deps
                         '''
                     }
@@ -72,6 +168,14 @@ pipeline {
                 script {
                     dir('h5-coverage-demo') {
                         sh '''
+                            # 确保 Node.js 在 PATH 中
+                            export PATH="$HOME/.jenkins_nodejs/bin:${PATH}"
+                            
+                            if ! command -v node >/dev/null 2>&1; then
+                                echo "错误: Node.js 未找到，请检查 Setup Node.js 阶段"
+                                exit 1
+                            fi
+                            
                             echo "构建配置:"
                             echo "  - ENABLE_COVERAGE: ${ENABLE_COVERAGE}"
                             echo "  - NODE_ENV: ${NODE_ENV:-production}"
