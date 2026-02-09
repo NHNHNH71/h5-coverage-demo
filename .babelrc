@@ -1,0 +1,30 @@
+{
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "targets": {
+          "browsers": ["> 1%", "last 2 versions"]
+        }
+      }
+    ]
+  ],
+  "env": {
+    "coverage": {
+      "plugins": [
+        [
+          "istanbul",
+          {
+            "exclude": [
+              "**/*.spec.js",
+              "**/*.test.js",
+              "**/node_modules/**",
+              "**/dist/**"
+            ]
+          }
+        ]
+      ]
+    }
+  }
+}
+
