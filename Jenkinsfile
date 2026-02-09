@@ -40,28 +40,6 @@ pipeline {
     }
     
     stages {
-        stage('Configure Git') {
-            steps {
-                echo '=========================================='
-                echo '正在配置 Git...'
-                echo '=========================================='
-                script {
-                    sh '''
-                        # 配置 Git 使用 gnutls（服务器支持的 SSL 后端）
-                        git config --global http.sslBackend gnutls || true
-                        
-                        # 增加 Git HTTP 缓冲区大小和超时设置
-                        git config --global http.postBuffer 524288000 || true
-                        git config --global http.lowSpeedLimit 0 || true
-                        git config --global http.lowSpeedTime 999999 || true
-                        
-                        # 显示当前 Git 配置
-                        echo "Git 配置:"
-                        git config --global --list | grep -E "(http|ssl)" || echo "使用默认配置"
-                    '''
-                }
-            }
-        }
         
         stage('Checkout') {
             steps {
