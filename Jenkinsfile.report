@@ -1,0 +1,131 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(
+            name: 'PROJECT_NAME',
+            defaultValue: 'h5-coverage-demo',
+            description: '项目名称'
+        )
+        string(
+            name: 'WORKSPACE_PATH',
+            defaultValue: '/var/jenkins_home/workspace/h5-coverage-demo',
+            description: '项目工作空间路径'
+        )
+    }
+    
+    environment {
+        PATH = "${env.PATH}:${env.HOME}/.jenkins_nodejs/bin"
+    }
+    
+    stages {
+        stage('Check Coverage Data') {
+            steps {
+                echo '=========================================='
+                echo '检查覆盖率数据...'
+                echo '=========================================='
+                script {
+                    sh '''
+                        cd ${WORKSPACE_PATH}
+                        
+                        if [ ! -f ".nyc_output/coverage.json" ]; then
+                            echo "❌ 覆盖率数据文件不存在"
+                            echo "请确保应用已运行并收集了覆盖率数据"
+                            exit 1
+                        fi
+                        
+                        echo "✓ 覆盖率数据文件存在"
+                        ls -lh .nyc_output/coverage.json
+                        
+                        # 显示数据统计
+                        echo ""
+                        echo "覆盖率数据统计:"
+                        cat .nyc_output/coverage.json | grep -o '"path"' | wc -l | xargs echo "  文件数:"
+                    '''
+                }
+            }
+        }
+        
+        stage('Generate Coverage Report') {
+            steps {
+                echo '=========================================='
+                echo '生成覆盖率报告...'
+                echo '=========================================='
+                script {
+                    sh '''
+                        cd ${WORKSPACE_PATH}
+                        
+                        export PATH="$HOME/.jenkins_nodejs/bin:${PATH}"
+                        
+                        # 生成 HTML 报告
+                        npm run coverage:report
+                        
+                        echo ""
+                        echo "✓ 覆盖率报告已生成"
+                        ls -lah coverage/
+                    '''
+                }
+            }
+        }
+        
+        stage('Publish Report') {
+            steps {
+                echo '=========================================='
+                echo '发布覆盖率报告...'
+                echo '=========================================='
+                script {
+                    dir("${params.WORKSPACE_PATH}") {
+                        // 方案 1: 使用 HTML Publisher 插件（需要安装插件）
+                        // 如果没有安装插件，注释掉下面的 publishHTML 部分
+                        try {
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: 'coverage',
+                                reportFiles: 'index.html',
+                                reportName: 'Coverage Report',
+                                reportTitles: ''
+                            ])
+                            echo "✓ 报告已发布到 Jenkins (HTML Publisher)"
+                        } catch (Exception e) {
+                            echo "⚠ HTML Publisher 插件未安装，跳过 HTML 发布"
+                            echo "请安装 HTML Publisher 插件或使用归档产物方式"
+                        }
+                        
+                        // 方案 2: 归档产物（备选，始终执行）
+                        archiveArtifacts artifacts: 'coverage/**',
+                                         fingerprint: true,
+                                         allowEmptyArchive: false
+                        
+                        echo "✓ 报告已归档为构建产物"
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '=========================================='
+            echo '✓ 覆盖率报告生成成功！'
+            echo '=========================================='
+            echo ''
+            echo '查看报告的方式:'
+            echo '1. 点击左侧 "Coverage Report" 链接（如果安装了 HTML Publisher 插件）'
+            echo '2. 点击 "Build Artifacts" 下载 coverage 目录'
+            echo ''
+        }
+        failure {
+            echo '=========================================='
+            echo '❌ 覆盖率报告生成失败'
+            echo '=========================================='
+            echo ''
+            echo '可能的原因:'
+            echo '1. 覆盖率数据文件不存在（应用未运行或未收集数据）'
+            echo '2. 工作空间路径错误'
+            echo '3. Node.js 环境问题'
+            echo ''
+        }
+    }
+}
