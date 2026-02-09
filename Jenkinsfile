@@ -47,8 +47,8 @@ pipeline {
                 echo '=========================================='
                 script {
                     sh '''
-                        # 配置 Git 使用 OpenSSL（如果可用）以解决 TLS 连接问题
-                        git config --global http.sslBackend openssl 2>/dev/null || echo "⚠ OpenSSL 后端不可用，使用默认后端"
+                        # 配置 Git 使用 gnutls（服务器支持的 SSL 后端）
+                        git config --global http.sslBackend gnutls || true
                         
                         # 增加 Git HTTP 缓冲区大小和超时设置
                         git config --global http.postBuffer 524288000 || true
