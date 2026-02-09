@@ -141,31 +141,29 @@ pipeline {
                 echo '正在安装依赖...'
                 echo '=========================================='
                 script {
-                    dir('h5-coverage-demo') {
-                        sh '''
-                            # 确保 Node.js 在 PATH 中
-                            export PATH="$HOME/.jenkins_nodejs/bin:${PATH}"
-                            
-                            echo "Node版本: $(node --version 2>&1 || echo '未找到')"
-                            echo "NPM版本: $(npm --version 2>&1 || echo '未找到')"
-                            
-                            if ! command -v node >/dev/null 2>&1; then
-                                echo "错误: Node.js 未找到，请检查 Setup Node.js 阶段"
-                                exit 1
-                            fi
-                            
-                            npm install --legacy-peer-deps
-                            
-                            # 修复 node_modules/.bin 中的可执行文件权限
-                            if [ -d "node_modules/.bin" ]; then
-                                echo "修复 node_modules/.bin 中的可执行文件权限..."
-                                find node_modules/.bin -type f -exec chmod +x {} \\;
-                                echo "✓ 权限修复完成（使用 find 确保所有文件都被处理）"
-                            else
-                                echo "⚠ node_modules/.bin 目录不存在"
-                            fi
-                        '''
-                    }
+                    sh '''
+                        # 确保 Node.js 在 PATH 中
+                        export PATH="$HOME/.jenkins_nodejs/bin:${PATH}"
+                        
+                        echo "Node版本: $(node --version 2>&1 || echo '未找到')"
+                        echo "NPM版本: $(npm --version 2>&1 || echo '未找到')"
+                        
+                        if ! command -v node > /dev/null 2>&1; then
+                            echo "错误: Node.js 未找到,请检查 Setup Node.js 阶段"
+                            exit 1
+                        fi
+                        
+                        npm install --legacy-peer-deps
+                        
+                        # 修复 node_modules/.bin 中的可执行文件权限
+                        if [ -d "node_modules/.bin" ]; then
+                            echo "修复 node_modules/.bin 中的可执行文件权限..."
+                            find node_modules/.bin -type f -exec chmod +x {} \\;
+                            echo "✓ 权限修复完成（使用 find 确保所有文件都被处理）"
+                        else
+                            echo "⚠ node_modules/.bin 目录不存在"
+                        fi
+                    '''
                 }
             }
         }
@@ -176,30 +174,28 @@ pipeline {
                 echo '正在构建项目（覆盖率插桩: ${ENABLE_COVERAGE}）...'
                 echo '=========================================='
                 script {
-                    dir('h5-coverage-demo') {
-                        sh '''
-                            # 确保 Node.js 在 PATH 中
-                            export PATH="$HOME/.jenkins_nodejs/bin:${PATH}"
-                            
-                            if ! command -v node >/dev/null 2>&1; then
-                                echo "错误: Node.js 未找到，请检查 Setup Node.js 阶段"
-                                exit 1
-                            fi
-                            
-                            echo "构建配置:"
-                            echo "  - ENABLE_COVERAGE: ${ENABLE_COVERAGE}"
-                            echo "  - NODE_ENV: ${NODE_ENV:-production}"
-                            
-                            # 使用 npx 执行 webpack，绕过权限问题
-                            # npx 通过 Node.js 执行，不依赖文件系统权限
-                            echo "使用 npx 执行 webpack 构建..."
-                            ENABLE_COVERAGE=${ENABLE_COVERAGE} node ./node_modules/webpack/bin/webpack.js --mode production
-                            
-                            echo ""
-                            echo "构建完成，检查产物..."
-                            ls -lah dist/ || echo "⚠ dist目录不存在"
-                        '''
-                    }
+                    sh '''
+                        # 确保 Node.js 在 PATH 中
+                        export PATH="$HOME/.jenkins_nodejs/bin:${PATH}"
+                        
+                        if ! command -v node >/dev/null 2>&1; then
+                            echo "错误: Node.js 未找到，请检查 Setup Node.js 阶段"
+                            exit 1
+                        fi
+                        
+                        echo "构建配置:"
+                        echo "  - ENABLE_COVERAGE: ${ENABLE_COVERAGE}"
+                        echo "  - NODE_ENV: ${NODE_ENV:-production}"
+                        
+                        # 使用 npx 执行 webpack，绕过权限问题
+                        # npx 通过 Node.js 执行，不依赖文件系统权限
+                        echo "使用 npx 执行 webpack 构建..."
+                        ENABLE_COVERAGE=${ENABLE_COVERAGE} node ./node_modules/webpack/bin/webpack.js --mode production
+                        
+                        echo ""
+                        echo "构建完成，检查产物..."
+                        ls -lah dist/ || echo "⚠ dist目录不存在"
+                    '''
                 }
             }
         }
@@ -210,45 +206,43 @@ pipeline {
                 echo '正在验证构建产物...'
                 echo '=========================================='
                 script {
-                    dir('h5-coverage-demo') {
-                        sh '''
-                            echo "检查构建产物..."
-                            
-                            # 检查基本文件
-                            if [ -d "dist" ]; then
-                                echo "✓ dist目录存在"
-                                ls -lah dist/
+                    sh '''
+                        echo "检查构建产物..."
+                        
+                        # 检查基本文件
+                        if [ -d "dist" ]; then
+                            echo "✓ dist目录存在"
+                            ls -lah dist/
+                        else
+                            echo "✗ dist目录不存在"
+                            exit 1
+                        fi
+                        
+                        # 检查JS文件
+                        if ls dist/*.js 1> /dev/null 2>&1; then
+                            echo "✓ JS文件已生成"
+                            ls -lh dist/*.js
+                        else
+                            echo "✗ JS文件未生成"
+                            exit 1
+                        fi
+                        
+                        # 检查Sourcemap文件
+                        if ls dist/*.map 1> /dev/null 2>&1; then
+                            echo "✓ Sourcemap文件已生成"
+                        else
+                            echo "⚠ Sourcemap文件未生成"
+                        fi
+                        
+                        # 如果启用覆盖率，检查coverage-config.js
+                        if [ "$ENABLE_COVERAGE" = "true" ]; then
+                            if [ -f "dist/coverage-config.js" ]; then
+                                echo "✓ coverage-config.js已生成"
                             else
-                                echo "✗ dist目录不存在"
-                                exit 1
+                                echo "⚠ coverage-config.js未生成（可能影响覆盖率收集）"
                             fi
-                            
-                            # 检查JS文件
-                            if ls dist/*.js 1> /dev/null 2>&1; then
-                                echo "✓ JS文件已生成"
-                                ls -lh dist/*.js
-                            else
-                                echo "✗ JS文件未生成"
-                                exit 1
-                            fi
-                            
-                            # 检查Sourcemap文件
-                            if ls dist/*.map 1> /dev/null 2>&1; then
-                                echo "✓ Sourcemap文件已生成"
-                            else
-                                echo "⚠ Sourcemap文件未生成"
-                            fi
-                            
-                            # 如果启用覆盖率，检查coverage-config.js
-                            if [ "$ENABLE_COVERAGE" = "true" ]; then
-                                if [ -f "dist/coverage-config.js" ]; then
-                                    echo "✓ coverage-config.js已生成"
-                                else
-                                    echo "⚠ coverage-config.js未生成（可能影响覆盖率收集）"
-                                fi
-                            fi
-                        '''
-                    }
+                        fi
+                    '''
                 }
             }
         }
@@ -262,38 +256,36 @@ pipeline {
                 echo "正在部署到 ${DEPLOY_TARGET}..."
                 echo '=========================================='
                 script {
-                    dir('h5-coverage-demo') {
-                        if (params.DEPLOY_TARGET == 'nginx') {
-                            sh '''
-                                echo "部署模式: Nginx"
-                                echo "部署路径: ${DEPLOY_PATH}"
-                                
-                                # 创建部署目录
-                                sudo mkdir -p ${DEPLOY_PATH}
-                                
-                                # 复制文件
-                                sudo cp -r dist/* ${DEPLOY_PATH}/
-                                
-                                # 设置权限
-                                sudo chown -R www-data:www-data ${DEPLOY_PATH} || sudo chown -R nginx:nginx ${DEPLOY_PATH} || true
-                                sudo chmod -R 755 ${DEPLOY_PATH}
-                                
-                                echo "✓ 部署完成"
-                                echo "访问地址: http://your-server-ip/h5-coverage-demo"
-                            '''
-                        } else if (params.DEPLOY_TARGET == 'docker') {
-                            sh '''
-                                echo "部署模式: Docker"
-                                
-                                # 构建Docker镜像（如果存在Dockerfile）
-                                if [ -f "Dockerfile" ]; then
-                                    docker build -t h5-coverage-demo:${BUILD_NUMBER} .
-                                    echo "✓ Docker镜像构建完成"
-                                else
-                                    echo "⚠ 未找到Dockerfile，跳过Docker部署"
-                                fi
-                            '''
-                        }
+                    if (params.DEPLOY_TARGET == 'nginx') {
+                        sh '''
+                            echo "部署模式: Nginx"
+                            echo "部署路径: ${DEPLOY_PATH}"
+                            
+                            # 创建部署目录
+                            sudo mkdir -p ${DEPLOY_PATH}
+                            
+                            # 复制文件
+                            sudo cp -r dist/* ${DEPLOY_PATH}/
+                            
+                            # 设置权限
+                            sudo chown -R www-data:www-data ${DEPLOY_PATH} || sudo chown -R nginx:nginx ${DEPLOY_PATH} || true
+                            sudo chmod -R 755 ${DEPLOY_PATH}
+                            
+                            echo "✓ 部署完成"
+                            echo "访问地址: http://your-server-ip/h5-coverage-demo"
+                        '''
+                    } else if (params.DEPLOY_TARGET == 'docker') {
+                        sh '''
+                            echo "部署模式: Docker"
+                            
+                            # 构建Docker镜像（如果存在Dockerfile）
+                            if [ -f "Dockerfile" ]; then
+                                docker build -t h5-coverage-demo:${BUILD_NUMBER} .
+                                echo "✓ Docker镜像构建完成"
+                            else
+                                echo "⚠ 未找到Dockerfile，跳过Docker部署"
+                            fi
+                        '''
                     }
                 }
             }
@@ -311,35 +303,33 @@ pipeline {
                 echo '正在启动覆盖率数据收集服务器...'
                 echo '=========================================='
                 script {
-                    dir('h5-coverage-demo') {
-                        sh '''
-                            echo "覆盖率服务器端口: ${COVERAGE_SERVER_PORT}"
-                            echo "部署目标: ${DEPLOY_TARGET}"
-                            
-                            # 复制覆盖率服务器脚本到部署目录
-                            if [ "$DEPLOY_TARGET" = "nginx" ]; then
-                                sudo cp coverage-server.js ${DEPLOY_PATH}/ || true
-                                echo "✓ 覆盖率服务器脚本已复制到部署目录"
-                            fi
-                            
-                            # 注意：实际启动服务器需要在部署后手动执行或使用systemd服务
-                            echo ""
-                            echo "=========================================="
-                            echo "覆盖率数据收集服务器配置说明:"
-                            echo "=========================================="
-                            echo "1. 服务器脚本: coverage-server.js"
-                            echo "2. 端口: ${COVERAGE_SERVER_PORT}"
-                            echo "3. 数据保存路径: ${DEPLOY_PATH}/.nyc_output/coverage.json"
-                            echo ""
-                            echo "启动命令:"
-                            echo "  cd ${DEPLOY_PATH}"
-                            echo "  node coverage-server.js"
-                            echo ""
-                            echo "或使用PM2:"
-                            echo "  pm2 start coverage-server.js --name h5-coverage-server"
-                            echo "=========================================="
-                        '''
-                    }
+                    sh '''
+                        echo "覆盖率服务器端口: ${COVERAGE_SERVER_PORT}"
+                        echo "部署目标: ${DEPLOY_TARGET}"
+                        
+                        # 复制覆盖率服务器脚本到部署目录
+                        if [ "$DEPLOY_TARGET" = "nginx" ]; then
+                            sudo cp coverage-server.js ${DEPLOY_PATH}/ || true
+                            echo "✓ 覆盖率服务器脚本已复制到部署目录"
+                        fi
+                        
+                        # 注意：实际启动服务器需要在部署后手动执行或使用systemd服务
+                        echo ""
+                        echo "=========================================="
+                        echo "覆盖率数据收集服务器配置说明:"
+                        echo "=========================================="
+                        echo "1. 服务器脚本: coverage-server.js"
+                        echo "2. 端口: ${COVERAGE_SERVER_PORT}"
+                        echo "3. 数据保存路径: ${DEPLOY_PATH}/.nyc_output/coverage.json"
+                        echo ""
+                        echo "启动命令:"
+                        echo "  cd ${DEPLOY_PATH}"
+                        echo "  node coverage-server.js"
+                        echo ""
+                        echo "或使用PM2:"
+                        echo "  pm2 start coverage-server.js --name h5-coverage-server"
+                        echo "=========================================="
+                    '''
                 }
             }
         }
@@ -349,14 +339,14 @@ pipeline {
                 echo '=========================================='
                 echo '正在归档构建产物...'
                 echo '=========================================='
-                archiveArtifacts artifacts: 'h5-coverage-demo/dist/**', 
+                archiveArtifacts artifacts: 'dist/**', 
                                  fingerprint: true,
                                  allowEmptyArchive: false
                 
                 // 如果启用覆盖率，也归档覆盖率相关文件
                 script {
                     if (env.ENABLE_COVERAGE == 'true') {
-                        archiveArtifacts artifacts: 'h5-coverage-demo/coverage-config.template.js',
+                        archiveArtifacts artifacts: 'coverage-config.template.js',
                                          fingerprint: true,
                                          allowEmptyArchive: true
                     }
