@@ -67,7 +67,7 @@ pipeline {
                             if [ -s "$HOME/.nvm/nvm.sh" ]; then
                                 echo "使用 nvm 安装 Node.js ${NODE_VERSION}..."
                                 export NVM_DIR="$HOME/.nvm"
-                                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                                [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
                                 nvm install ${NODE_VERSION}
                                 nvm use ${NODE_VERSION}
                             # 方法2: 直接下载 Node.js 二进制文件
