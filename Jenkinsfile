@@ -193,7 +193,7 @@ pipeline {
                             # 使用 npx 执行 webpack，绕过权限问题
                             # npx 通过 Node.js 执行，不依赖文件系统权限
                             echo "使用 npx 执行 webpack 构建..."
-                            ENABLE_COVERAGE=${ENABLE_COVERAGE} npx --yes webpack --mode production
+                            ENABLE_COVERAGE=${ENABLE_COVERAGE} node ./node_modules/webpack/bin/webpack.js --mode production
                             
                             echo ""
                             echo "构建完成，检查产物..."
