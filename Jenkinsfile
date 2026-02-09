@@ -40,6 +40,29 @@ pipeline {
     }
     
     stages {
+        stage('Configure Git') {
+            steps {
+                echo '=========================================='
+                echo '正在配置 Git...'
+                echo '=========================================='
+                script {
+                    sh '''
+                        # 配置 Git 使用 OpenSSL（如果可用）以解决 TLS 连接问题
+                        git config --global http.sslBackend openssl 2>/dev/null || echo "⚠ OpenSSL 后端不可用，使用默认后端"
+                        
+                        # 增加 Git HTTP 缓冲区大小和超时设置
+                        git config --global http.postBuffer 524288000 || true
+                        git config --global http.lowSpeedLimit 0 || true
+                        git config --global http.lowSpeedTime 999999 || true
+                        
+                        # 显示当前 Git 配置
+                        echo "Git 配置:"
+                        git config --global --list | grep -E "(http|ssl)" || echo "使用默认配置"
+                    '''
+                }
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 echo '=========================================='

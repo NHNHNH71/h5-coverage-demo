@@ -122,6 +122,63 @@ cat /var/www/html/h5-coverage-demo/.nyc_output/coverage.json
 
 ## 故障排查
 
+### Git 连接错误（TLS 错误）
+
+如果遇到以下错误：
+```
+fatal: unable to access 'https://github.com/...': GnuTLS recv error (-110): The TLS connection was non-properly terminated.
+```
+
+**解决方案 1: 在 Jenkins 服务器上配置 Git 使用 OpenSSL（推荐）**
+
+在 Jenkins 服务器上执行：
+```bash
+# 检查 Git 使用的 TLS 后端
+git config --global http.sslBackend openssl
+
+# 或者如果系统没有 OpenSSL，尝试增加超时时间
+git config --global http.postBuffer 524288000
+git config --global http.lowSpeedLimit 0
+git config --global http.lowSpeedTime 999999
+```
+
+**解决方案 2: 在 Jenkinsfile 中添加 Git 配置步骤**
+
+在 `Checkout` 阶段之前添加一个 `Configure Git` 阶段：
+```groovy
+stage('Configure Git') {
+    steps {
+        sh '''
+            git config --global http.sslBackend openssl || true
+            git config --global http.postBuffer 524288000 || true
+            git config --global http.lowSpeedLimit 0 || true
+            git config --global http.lowSpeedTime 999999 || true
+        '''
+    }
+}
+```
+
+**解决方案 3: 使用 SSH 而不是 HTTPS**
+
+1. 在 Jenkins 中配置 SSH 密钥
+2. 将 Git 仓库 URL 改为 SSH 格式：`git@github.com:username/repo.git`
+
+**解决方案 4: 增加 Git 超时时间**
+
+在 Jenkins Job 配置中：
+1. 进入 **Pipeline** 配置
+2. 在 **Git** 配置中，展开 **Advanced**
+3. 设置 **Timeout (in minutes)** 为更大的值（如 10）
+
+**解决方案 5: 检查网络和代理设置**
+
+如果 Jenkins 服务器在代理后面：
+```bash
+# 配置 Git 代理
+git config --global http.proxy http://proxy-server:port
+git config --global https.proxy https://proxy-server:port
+```
+
 ### 构建失败
 
 1. 检查 Jenkins 控制台输出
