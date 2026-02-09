@@ -154,6 +154,13 @@ pipeline {
                             fi
                             
                             npm install --legacy-peer-deps
+                            
+                            # 修复 node_modules/.bin 中的可执行文件权限
+                            if [ -d "node_modules/.bin" ]; then
+                                echo "修复 node_modules/.bin 中的可执行文件权限..."
+                                chmod +x node_modules/.bin/*
+                                echo "✓ 权限修复完成"
+                            fi
                         '''
                     }
                 }
@@ -179,6 +186,14 @@ pipeline {
                             echo "构建配置:"
                             echo "  - ENABLE_COVERAGE: ${ENABLE_COVERAGE}"
                             echo "  - NODE_ENV: ${NODE_ENV:-production}"
+                            
+                            # 确保 node_modules/.bin 在 PATH 中
+                            export PATH="$(pwd)/node_modules/.bin:${PATH}"
+                            
+                            # 再次检查并修复权限（以防万一）
+                            if [ -d "node_modules/.bin" ]; then
+                                chmod +x node_modules/.bin/* 2>/dev/null || true
+                            fi
                             
                             # 执行构建
                             ENABLE_COVERAGE=${ENABLE_COVERAGE} npm run build
