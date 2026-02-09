@@ -158,7 +158,7 @@ pipeline {
                             # 修复 node_modules/.bin 中的可执行文件权限
                             if [ -d "node_modules/.bin" ]; then
                                 echo "修复 node_modules/.bin 中的可执行文件权限..."
-                                find node_modules/.bin -type f -exec chmod +x {} \;
+                                find node_modules/.bin -type f -exec chmod +x {} \\;
                                 echo "✓ 权限修复完成（使用 find 确保所有文件都被处理）"
                             else
                                 echo "⚠ node_modules/.bin 目录不存在"
