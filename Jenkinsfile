@@ -158,8 +158,10 @@ pipeline {
                             # 修复 node_modules/.bin 中的可执行文件权限
                             if [ -d "node_modules/.bin" ]; then
                                 echo "修复 node_modules/.bin 中的可执行文件权限..."
-                                chmod +x node_modules/.bin/*
-                                echo "✓ 权限修复完成"
+                                find node_modules/.bin -type f -exec chmod +x {} \;
+                                echo "✓ 权限修复完成（使用 find 确保所有文件都被处理）"
+                            else
+                                echo "⚠ node_modules/.bin 目录不存在"
                             fi
                         '''
                     }
@@ -187,16 +189,10 @@ pipeline {
                             echo "  - ENABLE_COVERAGE: ${ENABLE_COVERAGE}"
                             echo "  - NODE_ENV: ${NODE_ENV:-production}"
                             
-                            # 确保 node_modules/.bin 在 PATH 中
-                            export PATH="$(pwd)/node_modules/.bin:${PATH}"
-                            
-                            # 再次检查并修复权限（以防万一）
-                            if [ -d "node_modules/.bin" ]; then
-                                chmod +x node_modules/.bin/* 2>/dev/null || true
-                            fi
-                            
-                            # 执行构建
-                            ENABLE_COVERAGE=${ENABLE_COVERAGE} npm run build
+                            # 使用 npx 执行 webpack，绕过权限问题
+                            # npx 通过 Node.js 执行，不依赖文件系统权限
+                            echo "使用 npx 执行 webpack 构建..."
+                            ENABLE_COVERAGE=${ENABLE_COVERAGE} npx --yes webpack --mode production
                             
                             echo ""
                             echo "构建完成，检查产物..."
